@@ -12,75 +12,64 @@
  */
 #include <string>
 #include <iostream>
+#include <stack>
+
+#define IS_LETTER(a) ((a >= 'a' && a <= 'z') || (a >= 'A' && a <= 'Z'))
 
 using namespace std;
-
-class Node{
-public:
-	Node* left;
-	Node* right;
-	char content;
-	Node(Node* l, Node* r, char c) : left(l), right(r), content(c){}
-	~Node(){
-		delete left;
-		delete right;
-	}
-	void print(){
-		cout << content << "(";
-		if(left != NULL)
-			left->print();
-		cout << ",";
-		if(right != NULL)
-			right->print();
-		cout << ")";
-	}
-};
 
 class BinaryTreeParser{
 private:
 	string& tree;
-	int idx; //current position
+	unsigned int idx; //next position
+	stack<char> stacks;
 public:
-	BinaryTreeParser(string& t): tree(t),idx(-1){}
-	Node* parse();
+	BinaryTreeParser(string& t): tree(t),idx(0),stacks(){
+		stacks.push('$');
+		stacks.push('#');
+	}
+	bool parse();
 };
 
-Node* BinaryTreeParser::parse(){
-	if(idx >= (signed)tree.length()){
-		throw "illegal form";
+/**
+ * use LL(1) to parse the grammer
+ */
+bool BinaryTreeParser::parse(){
+	char c;
+	/**
+	 * the grammer was writed as:
+	 * # = %(#,#)
+	 * # = ¦Å
+	 */
+	while( (c = stacks.top()) != '$' && idx < tree.length()){
+		stacks.pop();
+		if(c == '#'){ //non-terminal #
+			if(tree[idx] == ',' || tree[idx] == ')'){ // do nothing
+			}else if(IS_LETTER(tree[idx])){
+				stacks.push(')');
+				stacks.push('#');
+				stacks.push(',');
+				stacks.push('#');
+				stacks.push('(');
+				stacks.push('%');
+			}
+		}else if(c == '%'){
+			if(!IS_LETTER(tree[idx]))
+				return false;
+			idx++;
+		}else if(c == ',' || c == ')'){
+			if(c != tree[idx])
+				return false;
+			idx++;
+		}else{
+			return false;
+		}
 	}
-	++idx;
-	char nextChar = tree[idx];
-	if( (nextChar >= 'a' && nextChar <= 'z') || (nextChar >= 'A' && nextChar <= 'Z')){
-		++idx; // get the '(' character
-		if(tree[idx] != '(')
-			throw "illegal form";
-		Node* left = parse();
-		++idx;
-		if(tree[idx] != ',')
-			throw "illegal form";
-		Node* right = parse();
-		++idx;
-		if(tree[idx] != ')')
-			throw "illegal form";
-		return new Node(left, right, nextChar);
-	}else if(nextChar == ',' || nextChar == ')'){
-		--idx;
-		return NULL;
-	}else{
-		throw "illegal form";
-	}
-	return NULL;
+	return true;
 }
 
 int main() {
 	string s = "A(B(,),C(D(,),))";
 	BinaryTreeParser parser(s);
-	Node* node = NULL;
-	try{
-		node = parser.parse();
-		node->print();
-	}catch(char const* e){
-		cout << e << endl;
-	}
+	cout << parser.parse();
 }
